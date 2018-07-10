@@ -4,7 +4,7 @@ is sent back to the calling module.
 """
 import os
 import subprocess
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, STDOUT
 
 
 class Git:
@@ -378,9 +378,17 @@ class Git:
         Function used to execute git commit <filename> command & send back the
         result.
         """
-        my_output = subprocess.check_output(
-            ["git", "commit", "-m", commit_msg], cwd=top_repo_path)
-        return my_output
+        p = Popen(
+            ["git", "commit", "-m", commit_msg],
+            stdout=PIPE,
+            stderr=PIPE,
+            cwd=top_repo_path)
+        _, my_output = p.communicate()
+        exit_code = p.returncode
+        return {
+            "code": 500 if exit_code > 0 else 200,
+            "message": my_output.decode("utf-8")
+        }
 
     def pull(self, origin, master, curr_fb_path):
         """
