@@ -416,7 +416,7 @@ class Git:
 
     def check_remote_auth(self, master, origin):
         try:
-            self.__auth_child.expect("Username for .*", timeout=5)
+            self.__auth_child.expect("Username for .*", timeout=100)
             return {
                 "code": 407,
                 'command': "git push " + origin + ' ' + master,
