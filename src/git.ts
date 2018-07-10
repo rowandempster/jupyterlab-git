@@ -276,6 +276,22 @@ export class Git {
 		}	
 	 }
 
+
+	 async authenticate(username: string, password:string) {
+		try{
+			var val = await HTTP_Git_Request('/git/authenticate', 'POST', {"username": username, "password":password});
+			if (val.status !== 200) {
+        		return val.json().then(data=>{
+					throw new ServerConnection.ResponseError(val, data.message);
+				})
+			}
+			return val.json();
+		}catch(err){
+			throw ServerConnection.NetworkError;
+		}
+	 }
+
+
 	init(path:string){
 		return HTTP_Git_Request('/git/init','POST',{"current_path":path});
 	}

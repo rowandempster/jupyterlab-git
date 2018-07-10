@@ -340,6 +340,15 @@ class Git_push_handler(Git_handler):
         print("You Pushed")
 
 
+class Git_authenticate_handler(Git_handler):
+    def post(self):
+        my_data = json.loads(self.request.body.decode('utf-8'))
+        username = my_data["username"]
+        password = my_data["password"]
+        my_output = self.git.authenticate_user(username, password)
+        self.finish(my_output)
+
+
 class Git_init_handler(Git_handler):
     """
     A class used to initialize a repository.
@@ -391,6 +400,7 @@ def setup_handlers(web_app):
         ('/git/commit', Git_commit_handler),
         ('/git/pull', Git_pull_handler),
         ('/git/push', Git_push_handler),
+        ('/git/authenticate', Git_authenticate_handler),
         ('/git/diff', Git_diff_handler),
         ('/git/log', Git_log_handler),
         ('/git/log_1', Git_log_1_handler),
@@ -423,6 +433,7 @@ def print_handlers():
         ('/git/commit', Git_commit_handler),
         ('/git/pull', Git_pull_handler),
         ('/git/push', Git_push_handler),
+        ('/git/authenticate', Git_authenticate_handler),
         ('/git/diff', Git_diff_handler),
         ('/git/log', Git_log_handler),
         ('/git/log_1', Git_log_1_handler),

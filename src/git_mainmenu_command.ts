@@ -195,8 +195,54 @@ function addCommands(app: JupyterLab, services: ServiceManager) {
     }
   });
 
+    function showRemoteAuthResponse(action, code, message) {
+      if (code != 0) {
+          showDialog({
+              title: "Warning",
+              body: message,
+              buttons: [Dialog.warnButton({label: "OK"})]
+          })
+      }
+      else {
+          showDialog({
+              title: action + " success!",
+              buttons: [Dialog.okButton({label: "OK"})]
+          })
+      }
+    }
 
-  commands.addCommand(CommandIDs.git_pull, {
+    function getUserAuth(response, action) {
+        let input_block = document.createElement("div");
+        let user_prompt = document.createElement("li");
+        user_prompt.textContent = 'Enter your github username';
+        let user_input = document.createElement("input");
+        let pass_prompt = document.createElement("li")
+        pass_prompt.textContent = 'Enter your github password';
+        let pass_input = document.createElement("input");
+        pass_input.type = "password";
+
+        input_block.appendChild(user_prompt);
+        input_block.appendChild(user_input);
+        input_block.appendChild(pass_prompt);
+        input_block.appendChild(pass_input);
+
+        let br = new Widget({node: input_block});
+        showDialog({
+            title: response.message,
+            body: br,
+            buttons: [Dialog.cancelButton(), Dialog.okButton({label: 'Submit'})]
+        }).then(result => {
+            let username = user_input.value;
+            let password = pass_input.value;
+            if (result.button.accept && username && username != null && password && password != null) {
+                git_temp.authenticate(username, password).then(response => {
+                    showRemoteAuthResponse(action, response.code, response.message);
+                })
+            }
+        })
+    }
+
+    commands.addCommand(CommandIDs.git_pull, {
     label: 'Pull',
     caption: 'Update remote refs along with associated objects',
     execute: () => {
@@ -226,18 +272,11 @@ function addCommands(app: JupyterLab, services: ServiceManager) {
           if (result.button.accept){ 
             if(msg1 && msg1!=null&&msg2&&msg2!=null) {
               git_temp.pull(msg1,msg2,cur_fb_path).then(response=>{
-                if(response.code!=0){
-                  showDialog({
-                    title: "Warning",
-                    body: response.message,
-                    buttons: [Dialog.warnButton({ label: "OK"})]
-                  })
+                if (response.code == 407) {
+                    getUserAuth("Pull", response);
                 }
-                else{
-                  showDialog({
-                    title: "Git Pull success!",
-                    buttons: [Dialog.okButton({ label: "OK"})]
-                  })
+                else {
+                  showRemoteAuthResponse("Pull", response.code, response.message);
                 }
               }) 
             }
@@ -284,18 +323,11 @@ function addCommands(app: JupyterLab, services: ServiceManager) {
           if (result.button.accept){ 
             if(msg1 && msg1!=null&&msg2&&msg2!=null) {
               git_temp.push(msg1,msg2,cur_fb_path).then(response=>{
-                if(response.code!=0){
-                  showDialog({
-                    title: "Warning",
-                    body: response.message,
-                    buttons: [Dialog.warnButton({ label: "OK"})]
-                  })
+                if (response.code == 407) {
+                    getUserAuth(response, "Push")
                 }
-                else{
-                  showDialog({
-                    title: "Git Push success!",
-                    buttons: [Dialog.okButton({ label: "OK"})]
-                  })
+                else {
+                    showRemoteAuthResponse("Push", response.code, response.message);
                 }
               }) 
             }
