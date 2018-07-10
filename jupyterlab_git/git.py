@@ -4,13 +4,16 @@ is sent back to the calling module.
 """
 import os
 import subprocess
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, STDOUT
+import pexpect
 
 
 class Git:
     """
     A single parent Git Class which has all the individual git methods in it.
     """
+
+    __auth_child = None
 
     def status(self, current_path):
         """
@@ -378,49 +381,72 @@ class Git:
         Function used to execute git commit <filename> command & send back the
         result.
         """
-        my_output = subprocess.check_output(
-            ["git", "commit", "-m", commit_msg], cwd=top_repo_path)
-        return my_output
+        p = Popen(
+            ["git", "commit", "-m", commit_msg],
+            stdout=PIPE,
+            stderr=PIPE,
+            cwd=top_repo_path)
+        _, my_output = p.communicate()
+        exit_code = p.returncode
+        return {
+            "code": 500 if exit_code > 0 else 200,
+            "message": my_output.decode("utf-8")
+        }
 
     def pull(self, origin, master, curr_fb_path):
         """
         Function used to execute git pull <branch1> <branch2> command & send
         back the result.
         """
-        p = Popen(
-            ["git", "pull", origin, master, "--no-commit"],
-            stdout=PIPE,
-            stderr=PIPE,
-            cwd=os.getcwd() + '/' + curr_fb_path)
-        my_output, my_error = p.communicate()
-        if (p.returncode == 0):
-            return {"code": p.returncode}
-        else:
-            return {
-                "code": p.returncode,
-                'command':
-                "git pull " + origin + ' ' + master + " --no-commit",
-                "message": my_error.decode('utf-8')
-            }
+
+        self.__auth_child = pexpect.spawn('git pull ' + origin + ' ' + master + ' --no-edit',
+                                          cwd=os.getcwd() + '/' + curr_fb_path)
+
+        return self.check_remote_auth(master, origin)
 
     def push(self, origin, master, curr_fb_path):
         """
         Function used to execute git push <branch1> <branch2> command & send
         back the result.
         """
-        p = Popen(
-            ["git", "push", origin, master],
-            stdout=PIPE,
-            stderr=PIPE,
-            cwd=os.getcwd() + '/' + curr_fb_path)
-        my_output, my_error = p.communicate()
-        if (p.returncode == 0):
-            return {"code": p.returncode}
+
+        self.__auth_child = pexpect.spawn('git push ' + origin + ' ' + master, cwd=os.getcwd() + '/' + curr_fb_path)
+
+        return self.check_remote_auth(master, origin)
+
+    def check_remote_auth(self, master, origin):
+        try:
+            self.__auth_child.expect("Username for .*", timeout=100)
+            return {
+                "code": 407,
+                'command': "git push " + origin + ' ' + master,
+                "message": "Using https strategy, please authenticate yourself"
+            }
+
+        except (pexpect.TIMEOUT, pexpect.EOF):
+            self.__auth_child.close()
+            if self.__auth_child.exitstatus == 0:
+                return {"code": self.__auth_child.exitstatus}
+            else:
+                return {
+                    "code": self.__auth_child.exitstatus,
+                    'command': "git push " + origin + ' ' + master,
+                    "message": self.__auth_child.before.decode('utf-8')
+                }
+
+    def authenticate_user(self, username, password):
+        self.__auth_child.sendline(username)
+        self.__auth_child.expect("Password for .*", timeout=5)
+        self.__auth_child.sendline(password + '\n')
+        self.__auth_child.expect(pexpect.EOF, 100)
+        self.__auth_child.close()
+        if self.__auth_child.exitstatus == 0:
+            return {"code": self.__auth_child.exitstatus}
         else:
             return {
-                "code": p.returncode,
-                'command': "git push " + origin + ' ' + master,
-                "message": my_error.decode('utf-8')
+                "code": self.__auth_child.exitstatus,
+                'command': "authenticate user",
+                "message": self.__auth_child.before.decode('utf-8')
             }
 
     def init(self, current_path):

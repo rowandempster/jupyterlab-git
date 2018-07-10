@@ -459,7 +459,22 @@ function commit_all_StagedNode(msg:string, path:string, refresh){
   if(msg&&msg!=''){
     let git_temp = new Git();
      git_temp.commit(msg, path).then(response=>{
-        refresh();
+       refresh();
+       response.json().then(json => {
+         if (json.code === 500) {
+            showDialog({
+              title: 'Commit Failed',
+              body: json.message,
+              buttons: [Dialog.warnButton({ label: 'OK'})]
+          });
+         }
+         else if (json.code === 200) {
+           showDialog({
+              title: 'Commit Succeeded',
+              buttons: [Dialog.okButton({ label: 'OK'})]
+          });
+         }
+       })
       });
   }
 }
